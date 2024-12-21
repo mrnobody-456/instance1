@@ -1,0 +1,134 @@
+/*1. Setup
+
+Backend Framework: Use Spring Boot (Spring Initializr for quick setup).
+
+Database: Use MySQL/PostgreSQL.
+
+Dependencies:
+
+Spring Web
+
+Spring Data JPA
+
+MySQL/PostgreSQL Driver
+
+SpringDoc OpenAPI/Swagger for API documentation.
+
+
+
+
+
+
+2. Implementation
+
+Step 1: Data Model
+
+Create an Entity class for Car with fields: */
+
+@Entity
+public class Car {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @NotNull
+    private String name;
+
+    @NotNull
+    private String model;
+
+    @NotNull
+    @Min(1886) // First car year
+    private int year;
+
+    @NotNull
+    @Positive
+    private double price;
+
+    @NotNull
+    private String color;
+
+    @NotNull
+    private String fuelType;
+
+    // Getters and Setters
+}
+
+//Step 2: Repository Layer
+
+@Repository
+public interface CarRepository extends JpaRepository<Car, Long> {
+    List<Car> findByNameContaining(String name);
+    List<Car> findByModelContaining(String model);
+    List<Car> findByYear(int year);
+}
+
+//Step 3: Service Layer
+
+@Service
+public class CarService {
+    @Autowired
+    private CarRepository carRepository;
+
+    public Car addCar(Car car) {
+        return carRepository.save(car);
+    }
+
+    public List<Car> getAllCars() {
+        return carRepository.findAll();
+    }
+
+    public List<Car> searchCars(String keyword) {
+        return carRepository.findByNameContaining(keyword); // Extend search logic
+    }
+
+    public Car updateCar(Long id, Car carDetails) {
+        Car car = carRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Car not found"));
+        car.setName(carDetails.getName());
+        car.setModel(carDetails.getModel());
+        car.setYear(carDetails.getYear());
+        car.setPrice(carDetails.getPrice());
+        car.setColor(carDetails.getColor());
+        car.setFuelType(carDetails.getFuelType());
+        return carRepository.save(car);
+    }
+
+    public void deleteCar(Long id) {
+        carRepository.deleteById(id);
+    }
+}
+
+//Step 4: Controller Layer
+
+@RestController
+@RequestMapping("/api/cars")
+public class CarController {
+    @Autowired
+    private CarService carService;
+
+    @PostMapping
+    public ResponseEntity<Car> addCar(@RequestBody @Valid Car car) {
+        return ResponseEntity.ok(carService.addCar(car));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<Car>> getAllCars(
+            @RequestParam(defaultValue = "") String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(carService.getAllCars()); // Add pagination
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Car> updateCar(@PathVariable Long id, @RequestBody @Valid Car car) {
+        return ResponseEntity.ok(carService.updateCar(id, car));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteCar(@PathVariable Long id) {
+        carService.deleteCar(id);
+        return ResponseEntity.noContent().build();
+    }
+}
